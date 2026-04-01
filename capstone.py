@@ -1,46 +1,46 @@
 
+#!/usr/bin/env python
 
-import time
+import RPi.GPIO as GPIO
 from mfrc522 import SimpleMFRC522
+import os
 
-# Vairable IDs
-# FLASH_vid1 = put path
-# FLASH_vid2 = put path
-# FLASH_vid3 = put path
-# FLASH_vid4 = put path
-# STATIC_vid = put path
-# SENSOR_ONE = put id
-# SENSOR_TWO = put id
-# SENSOR_THREE = put id
-# SENSOR_FOUR = put id
+reader = SimpleMFRC522()
 
+
+##Variables for Files
+visual_files ={
+    551721708274: "/home/campse/caps/env/one.mp4",
+    207537121893: "/home/campse/caps/env/two.mp4",
+    482431805988: "/home/campse/caps/env/three.mp3"
+    }
+
+##Loop for clues to be played
+    
 try:
-    print("Starting default loop...")
-    play_loop(STATIC_vid)
-
+    print:("Scan Item For Clue.....")
+    
     while True:
-        id, text = reader.read_no_block()
-
-        if id is not None:
-            print(f"RFID detected: {id}")
-
-            if id == TARGET_TAG_ID:
-                print("Matched target tag!")
-
-                player.stop()
-                time.sleep(1)
-
-                play_once(SPECIAL_VIDEO)
-                wait_until_finished()
-
-                print("Returning to default loop...")
-                play_loop(DEFAULT_VIDEO)
-
+        id= reader.read() [0];
+        print(id);
+        
+        
+        if id in visual_files:
+            file_path = visual_files[id]
+            print("Playing Clue For Item:", id)
+            
+            if file_path.endswith(".mp4"):
+                os.system(f"cvlc --fullscreen --play-and-exit --no-video-title-show '{file_path}'")
+                
+            elif file_path.endswith(".mp3"):
+                os.system(f"mpg321 '{file_path}'")
+                
             else:
-                print("Unknown tag")
-
-        time.sleep(0.2)
-
-except KeyboardInterrupt:
-    print("Exiting...")
-    player.stop()
+                print("File Unsuporrted:", file_path)
+                        
+        else:
+            print("Clue Not Found. Try Again.")
+                    
+finally:
+    GPIO.cleanup()
+    
