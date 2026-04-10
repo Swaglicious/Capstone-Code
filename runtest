@@ -2,72 +2,60 @@
 
 import RPi.GPIO as GPIO
 from mfrc522 import SimpleMFRC522
-import os
+import vlc
 import time
-import subprocess
 
 reader = SimpleMFRC522()
 
-# Variables for files
+# RFID -> media files
 visual_files = {
     551721708274: "/home/campse/caps/env/one.mp4",
     207537121893: "/home/campse/caps/env/two.mp4",
     482431805988: "/home/campse/caps/env/three.mp3"
 }
 
-# RFID card that stops the program
+# Stop card
 stop_card = 1031617194694
 
-# Looping background video
+# Looping video
 looping_video = "/home/campse/caps/env/loop.mp4"
 
+# Create ONE VLC player
+instance = vlc.Instance('--fullscreen', '--no-video-title-show')
+player = instance.media_player_new()
+
+def play_media(file):
+    media = instance.media_new(file)
+    player.set_media(media)
+    player.play()
+
 try:
-    # Start looping background video
-    loop_process = subprocess.Popen([
-        "cvlc", "--loop", "--fullscreen", "--no-video-title-show", "--quiet", looping_video
-    ])
+    # Start looping video
+    play_media(looping_video)
 
     while True:
         id = reader.read()[0]
-        print(id)
 
         # Stop card
         if id == stop_card:
-            print("Stop card scanned. Ending program.")
             break
 
         if id in visual_files:
             file_path = visual_files[id]
-            print("Playing Clue For Item:", id)
 
-            # Stop background loop ONLY when ready to play clue
-            loop_process.terminate()
-            loop_process.wait()
-            time.sleep(0.2)
+            # Play clue instantly (no flicker)
+            play_media(file_path)
 
-            if file_path.endswith(".mp4"):
-                os.system(f"cvlc --fullscreen --play-and-exit --no-video-title-show --quiet '{file_path}'")
+            # Wait until media finishes
+            time.sleep(1)
+            while player.is_playing():
+                time.sleep(0.5)
 
-            elif file_path.endswith(".mp3"):
-                os.system(f"mpg321 -q '{file_path}'")
-
-            else:
-                print("File Unsupported:", file_path)
-
-            # Restart loop video after clue finishes
-            loop_process = subprocess.Popen([
-                "cvlc", "--loop", "--fullscreen", "--no-video-title-show", "--quiet", looping_video
-            ])
-
-        else:
-            print("Clue Not Found. Try Again.")
+            # Return to loop
+            play_media(looping_video)
 
         time.sleep(0.2)
 
-except KeyboardInterrupt:
-    print("\nScavenger Experience Ending.....")
-
 finally:
     GPIO.cleanup()
-    loop_process.terminate()
-    loop_process.wait()
+    player.stop()
