@@ -1,0 +1,73 @@
+#!/usr/bin/env python3
+
+import RPi.GPIO as GPIO
+from mfrc522 import SimpleMFRC522
+import os
+import time
+import subprocess
+
+reader = SimpleMFRC522()
+
+# Variables for files
+visual_files = {
+    551721708274: "/home/campse/caps/env/one.mp4",
+    207537121893: "/home/campse/caps/env/two.mp4",
+    482431805988: "/home/campse/caps/env/three.mp3"
+}
+
+# RFID card that stops the program
+stop_card = 1031617194694
+
+# Looping background video
+looping_video = "/home/campse/caps/env/loop.mp4"
+
+try:
+    # Start looping background video
+    loop_process = subprocess.Popen([
+        "cvlc", "--loop", "--fullscreen", "--no-video-title-show", "--quiet", looping_video
+    ])
+
+    while True:
+        id = reader.read()[0]
+        print(id)
+
+        # Stop card
+        if id == stop_card:
+            print("Stop card scanned. Ending program.")
+            break
+
+        if id in visual_files:
+            file_path = visual_files[id]
+            print("Playing Clue For Item:", id)
+
+            # Stop background loop ONLY when ready to play clue
+            loop_process.terminate()
+            loop_process.wait()
+            time.sleep(0.2)
+
+            if file_path.endswith(".mp4"):
+                os.system(f"cvlc --fullscreen --play-and-exit --no-video-title-show --quiet '{file_path}'")
+
+            elif file_path.endswith(".mp3"):
+                os.system(f"mpg321 -q '{file_path}'")
+
+            else:
+                print("File Unsupported:", file_path)
+
+            # Restart loop video after clue finishes
+            loop_process = subprocess.Popen([
+                "cvlc", "--loop", "--fullscreen", "--no-video-title-show", "--quiet", looping_video
+            ])
+
+        else:
+            print("Clue Not Found. Try Again.")
+
+        time.sleep(0.2)
+
+except KeyboardInterrupt:
+    print("\nScavenger Experience Ending.....")
+
+finally:
+    GPIO.cleanup()
+    loop_process.terminate()
+    loop_process.wait()
